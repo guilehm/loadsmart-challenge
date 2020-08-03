@@ -24,3 +24,6 @@ class Truck:
 
     def __str__(self):
         return f'TRUCK: {self.truck}'
+
+    def calculate_distance(self):
+        pass
