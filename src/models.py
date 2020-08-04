@@ -1,5 +1,4 @@
 import itertools
-from collections import Counter
 from itertools import combinations_with_replacement
 
 from src.utils import get_csv_reader, haversine
@@ -71,11 +70,13 @@ class Combination:
         return self.distance_to_load == other.distance_to_load
 
     def __repr__(self):
-        return f'COMBINATION: C#{self.cargo.id:02} - T#{self.truck.id:03} - D {self.distance_to_load_representation} km - ID {self.id}'
+        return f'COMBINATION: ' \
+               f'C#{self.cargo.id:02} - ' \
+               f'T#{self.truck.id:03} - ' \
+               f'D {self.distance_to_load_representation} km - ID {self.id}'
 
 
-class TrucksAndCargo:
-
+class TrucksAndCargos:
     PRECISION = 100
 
     def __init__(self):
@@ -86,6 +87,11 @@ class TrucksAndCargo:
         self.closer_combinations = list(self._get_closer_combinations())
         self.filtered_combinations = self.get_filtered_combinations()
         self.valid_combinations_ids = list()
+
+        self.TRUCK_COUNT = len(self.trucks)
+        self.CARGO_COUNT = len(self.cargos)
+
+        self._map_combinations_ids()
 
     @staticmethod
     def _get_model_list(model):
@@ -111,36 +117,24 @@ class TrucksAndCargo:
                 filter(lambda x: x.distance_to_load < combination[0].distance_to_load + self.PRECISION, combination)
             )
 
-    # TODO: Choose a better name
-    def get_conflict_combinations(self, position=0):
-        trucks_ids = (combination[0].truck.id for combination in self.closer_combinations)
-        repeated_trucks_ids = [truck for truck, count in Counter(trucks_ids).items() if count > 1]
-        conflict_combinations = [filter(
-            lambda x: x[position].truck.id == _id, self.closer_combinations
-        ) for _id in repeated_trucks_ids]
-        return conflict_combinations
-
-    def _create_distance_ids_map(self):
-        # TODO: count the numbers from the sheet
-        letters = range(1, 8)
-        numbers = range(1, 45)
-        distances_ids = [f'{letter},{number}' for letter in letters for number in numbers]
-        for number, _id in enumerate(distances_ids):
+    def _map_combinations_ids(self):
+        cargos = range(1, self.CARGO_COUNT + 1)
+        trucks = range(1, self.TRUCK_COUNT + 1)
+        combinations_ids = [f'{cargo},{truck}' for cargo in cargos for truck in trucks]
+        for number, _id in enumerate(combinations_ids):
             self.combinations[number].id = _id
 
     def get_filtered_ids(self):
         return [comb.id for comb in itertools.chain.from_iterable(self.filtered_combinations)]
 
     def get_valid_combinations_ids(self):
-        # TODO: Get the number below from the cargo count
-        generator = combinations_with_replacement(self.get_filtered_ids(), 7)
+        all_combinations = combinations_with_replacement(self.get_filtered_ids(), self.CARGO_COUNT)
         valid_combinations = list()
-        for combination in generator:
+        for combination in all_combinations:
             cargos, trucks = set(), set()
             for cargo, truck in [comb.split(',') for comb in combination]:
                 cargos.add(cargo), trucks.add(truck)
-            # TODO: Get this length from the cargo count
-            if len(cargos) == 7 and len(trucks) == 7:
+            if len(cargos) == self.CARGO_COUNT and len(trucks) == self.CARGO_COUNT:
                 valid_combinations.append(combination)
         self.valid_combinations_ids = valid_combinations
 
@@ -154,14 +148,6 @@ class TrucksAndCargo:
         best_combination_codes = self.valid_combinations_ids[key]
         return best_combination_codes
 
-    def print_best_combination(self):
-        return list(filter(lambda x: x.id in self.get_best_combination_codes(), self.combinations))
-
     def process(self):
-        self._create_distance_ids_map()
         self.get_valid_combinations_ids()
-        return self.print_best_combination()
-
-trucks_and_cargos = TrucksAndCargo()
-a = trucks_and_cargos.process()
-a
+        return list(filter(lambda x: x.id in self.get_best_combination_codes(), self.combinations))
