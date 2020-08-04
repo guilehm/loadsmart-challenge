@@ -1,6 +1,8 @@
 import csv
 import os
-from math import radians, sin, cos, asin, sqrt
+from math import asin, cos, radians, sin, sqrt
+
+EARTH_RADIUS = 6371
 
 
 def haversine(origin_lat, origin_lng, destination_lat, destination_lng):
@@ -11,7 +13,7 @@ def haversine(origin_lat, origin_lng, destination_lat, destination_lng):
     a = sin(distance_lat / 2) ** 2 + cos(lat) * cos(des_lat) * sin(distance_lng / 2) ** 2
     c = 2 * asin(sqrt(a))
 
-    km = 6371 * c
+    km = EARTH_RADIUS * c
     return km
 
 
