@@ -4,8 +4,6 @@ from itertools import combinations_with_replacement
 
 from src.utils import get_csv_reader, haversine
 
-PRECISION = 100
-
 
 class Cargo:
     def __init__(self, _id, kwargs):
@@ -77,15 +75,17 @@ class Combination:
 
 
 class TrucksAndCargo:
+
+    PRECISION = 100
+
     def __init__(self):
         self.trucks = self._get_model_list('trucks')
         self.cargos = self._get_model_list('cargo')
         self.combinations = self._create_combinations()
 
         self.closer_combinations = list(self._get_closer_combinations())
-        self.filtered_combinations = list()
+        self.filtered_combinations = self.get_filtered_combinations()
         self.valid_combinations_ids = list()
-        self._fill_combination_ids()
 
     @staticmethod
     def _get_model_list(model):
@@ -97,18 +97,18 @@ class TrucksAndCargo:
     def _create_combinations(self):
         return [Combination(truck, cargo) for cargo in self.cargos for truck in self.trucks]
 
-    def closer_trucks(self, cargo_id):
+    def get_closer_trucks_list(self, cargo_id):
         combinations = filter(lambda x: x.cargo.id == cargo_id, self.combinations)
         return sorted(combinations, key=lambda x: x.distance_to_load)
 
     def _get_closer_combinations(self):
         for cargo in self.cargos:
-            yield self.closer_trucks(cargo.id)
+            yield self.get_closer_trucks_list(cargo.id)
 
-    def filter_closer_combinations(self):
+    def get_filtered_combinations(self):
         for combination in self.closer_combinations:
-            self.filtered_combinations.append(
-                list(filter(lambda x: x.distance_to_load < combination[0].distance_to_load + PRECISION, combination))
+            yield list(
+                filter(lambda x: x.distance_to_load < combination[0].distance_to_load + self.PRECISION, combination)
             )
 
     # TODO: Choose a better name
@@ -120,47 +120,48 @@ class TrucksAndCargo:
         ) for _id in repeated_trucks_ids]
         return conflict_combinations
 
-    def print_total_distance(self):
-        print(sum(combination[0].distance_to_load for combination in self.closer_combinations))
-
-    @staticmethod
-    def get_distance_ids():
+    def _create_distance_ids_map(self):
         # TODO: count the numbers from the sheet
         letters = range(1, 8)
         numbers = range(1, 45)
         distances_ids = [f'{letter},{number}' for letter in letters for number in numbers]
-        return distances_ids
-
-    def _fill_combination_ids(self):
-        for number, _id in enumerate(self.get_distance_ids()):
+        for number, _id in enumerate(distances_ids):
             self.combinations[number].id = _id
-
-    def zip_combinations_with_ids(self):
-        return zip(self.combinations, self.get_distance_ids())
 
     def get_filtered_ids(self):
         return [comb.id for comb in itertools.chain.from_iterable(self.filtered_combinations)]
 
-    def create_generator(self):
+    def get_valid_combinations_ids(self):
+        # TODO: Get the number below from the cargo count
         generator = combinations_with_replacement(self.get_filtered_ids(), 7)
         valid_combinations = list()
         for combination in generator:
-            cargos = list()
-            trucks = list()
+            cargos, trucks = set(), set()
             for cargo, truck in [comb.split(',') for comb in combination]:
-                cargos.append(cargo)
-                trucks.append(truck)
-            if len(set(cargos)) == 7 and len(set(trucks)) == 7:
+                cargos.add(cargo), trucks.add(truck)
+            # TODO: Get this length from the cargo count
+            if len(cargos) == 7 and len(trucks) == 7:
                 valid_combinations.append(combination)
         self.valid_combinations_ids = valid_combinations
-        return valid_combinations
 
-    def sum_distance_from_valid_combinations_ids(self):
+    def get_best_combination_codes(self):
         distances = list()
         for ids in self.valid_combinations_ids:
             combinations = filter(lambda x: x.id in ids, self.combinations)
             total = sum([x.distance_to_load for x in combinations])
             distances.append(total)
         key, _ = min(enumerate(distances), key=lambda x: x[1])
-        best_combination = self.valid_combinations_ids[key]
-        return best_combination
+        best_combination_codes = self.valid_combinations_ids[key]
+        return best_combination_codes
+
+    def print_best_combination(self):
+        return list(filter(lambda x: x.id in self.get_best_combination_codes(), self.combinations))
+
+    def process(self):
+        self._create_distance_ids_map()
+        self.get_valid_combinations_ids()
+        return self.print_best_combination()
+
+trucks_and_cargos = TrucksAndCargo()
+a = trucks_and_cargos.process()
+a
