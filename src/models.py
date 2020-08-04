@@ -91,7 +91,7 @@ class TrucksAndCargos:
         self.TRUCK_COUNT = len(self.trucks)
         self.CARGO_COUNT = len(self.cargos)
 
-        self._map_combinations_ids()
+        self._map_and_set_combinations_ids()
 
     @staticmethod
     def _get_model_list(model):
@@ -117,18 +117,16 @@ class TrucksAndCargos:
                 filter(lambda x: x.distance_to_load < combination[0].distance_to_load + self.PRECISION, combination)
             )
 
-    def _map_combinations_ids(self):
+    def _map_and_set_combinations_ids(self):
         cargos = range(1, self.CARGO_COUNT + 1)
         trucks = range(1, self.TRUCK_COUNT + 1)
         combinations_ids = [f'{cargo},{truck}' for cargo in cargos for truck in trucks]
         for number, _id in enumerate(combinations_ids):
             self.combinations[number].id = _id
 
-    def get_filtered_ids(self):
-        return [comb.id for comb in itertools.chain.from_iterable(self.filtered_combinations)]
-
     def get_valid_combinations_ids(self):
-        all_combinations = combinations_with_replacement(self.get_filtered_ids(), self.CARGO_COUNT)
+        filtered_ids = [comb.id for comb in itertools.chain.from_iterable(self.filtered_combinations)]
+        all_combinations = combinations_with_replacement(filtered_ids, self.CARGO_COUNT)
         valid_combinations = list()
         for combination in all_combinations:
             cargos, trucks = set(), set()
