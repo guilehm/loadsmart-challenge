@@ -1,6 +1,10 @@
+import itertools
 from collections import Counter
+from itertools import combinations_with_replacement
 
 from src.utils import get_csv_reader, haversine
+
+PRECISION = 100
 
 
 class Cargo:
@@ -36,6 +40,7 @@ class Truck:
 
 class Combination:
     def __init__(self, truck, cargo):
+        self.id = None
         self.truck = truck
         self.cargo = cargo
 
@@ -68,7 +73,7 @@ class Combination:
         return self.distance_to_load == other.distance_to_load
 
     def __repr__(self):
-        return f'COMBINATION: C#{self.cargo.id:02} - T#{self.truck.id:03} - D {self.distance_to_load_representation} km'
+        return f'COMBINATION: C#{self.cargo.id:02} - T#{self.truck.id:03} - D {self.distance_to_load_representation} km - ID {self.id}'
 
 
 class TrucksAndCargo:
@@ -78,6 +83,9 @@ class TrucksAndCargo:
         self.combinations = self._create_combinations()
 
         self.closer_combinations = list(self._get_closer_combinations())
+        self.filtered_combinations = list()
+        self.valid_combinations_ids = list()
+        self._fill_combination_ids()
 
     @staticmethod
     def _get_model_list(model):
@@ -97,6 +105,12 @@ class TrucksAndCargo:
         for cargo in self.cargos:
             yield self.closer_trucks(cargo.id)
 
+    def filter_closer_combinations(self):
+        for combination in self.closer_combinations:
+            self.filtered_combinations.append(
+                list(filter(lambda x: x.distance_to_load < combination[0].distance_to_load + PRECISION, combination))
+            )
+
     # TODO: Choose a better name
     def get_conflict_combinations(self, position=0):
         trucks_ids = (combination[0].truck.id for combination in self.closer_combinations)
@@ -109,8 +123,44 @@ class TrucksAndCargo:
     def print_total_distance(self):
         print(sum(combination[0].distance_to_load for combination in self.closer_combinations))
 
+    @staticmethod
+    def get_distance_ids():
+        # TODO: count the numbers from the sheet
+        letters = range(1, 8)
+        numbers = range(1, 45)
+        distances_ids = [f'{letter},{number}' for letter in letters for number in numbers]
+        return distances_ids
 
-trucks_and_cargos = TrucksAndCargo()
-for i in trucks_and_cargos.combinations:
-    print(i)
+    def _fill_combination_ids(self):
+        for number, _id in enumerate(self.get_distance_ids()):
+            self.combinations[number].id = _id
 
+    def zip_combinations_with_ids(self):
+        return zip(self.combinations, self.get_distance_ids())
+
+    def get_filtered_ids(self):
+        return [comb.id for comb in itertools.chain.from_iterable(self.filtered_combinations)]
+
+    def create_generator(self):
+        generator = combinations_with_replacement(self.get_filtered_ids(), 7)
+        valid_combinations = list()
+        for combination in generator:
+            cargos = list()
+            trucks = list()
+            for cargo, truck in [comb.split(',') for comb in combination]:
+                cargos.append(cargo)
+                trucks.append(truck)
+            if len(set(cargos)) == 7 and len(set(trucks)) == 7:
+                valid_combinations.append(combination)
+        self.valid_combinations_ids = valid_combinations
+        return valid_combinations
+
+    def sum_distance_from_valid_combinations_ids(self):
+        distances = list()
+        for ids in self.valid_combinations_ids:
+            combinations = filter(lambda x: x.id in ids, self.combinations)
+            total = sum([x.distance_to_load for x in combinations])
+            distances.append(total)
+        key, _ = min(enumerate(distances), key=lambda x: x[1])
+        best_combination = self.valid_combinations_ids[key]
+        return best_combination
