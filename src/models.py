@@ -5,34 +5,34 @@ from src.utils import get_csv_reader, haversine
 
 
 class Cargo:
-    def __init__(self, _id, kwargs):
+    def __init__(self, _id, **kwargs):
         self.id = _id
-        self.product = kwargs.pop('product')
-        self.origin_city = kwargs.pop('origin_city')
-        self.origin_state = kwargs.pop('origin_state')
+        self.product = kwargs.get('product')
+        self.origin_city = kwargs.get('origin_city')
+        self.origin_state = kwargs.get('origin_state')
         self.origin_lat = kwargs.pop('origin_lat')
         self.origin_lng = kwargs.pop('origin_lng')
-        self.destination_city = kwargs.pop('destination_city')
-        self.destination_state = kwargs.pop('destination_state')
+        self.destination_city = kwargs.get('destination_city')
+        self.destination_state = kwargs.get('destination_state')
         self.destination_lat = kwargs.pop('destination_lat')
         self.destination_lng = kwargs.pop('destination_lng')
 
     def __repr__(self):
-        return f'Cargo #{self.id} - [{self.origin_state}-{self.destination_state}] - {self.product}'
+        return f'Cargo #{self.id} - [{self.origin_state or ""}-{self.destination_state or ""}] - {self.product or ""}'
 
 
 class Truck:
-    def __init__(self, _id, kwargs):
+    def __init__(self, _id, **kwargs):
         self.id = _id
         self.available = True
-        self.truck = kwargs.pop('truck')
-        self.city = kwargs.pop('city')
-        self.state = kwargs.pop('state')
+        self.truck = kwargs.get('truck')
+        self.city = kwargs.get('city')
+        self.state = kwargs.get('state')
         self.lat = kwargs.pop('lat')
         self.lng = kwargs.pop('lng')
 
     def __repr__(self):
-        return f'Truck #{self.id} - {self.truck}'
+        return f'Truck #{self.id} - {self.truck or ""}'
 
 
 class Combination:
@@ -79,13 +79,13 @@ class Combination:
 class TrucksAndCargos:
     PRECISION = 100
 
-    def __init__(self):
-        self.trucks = self._get_model_list('trucks')
-        self.cargos = self._get_model_list('cargo')
+    def __init__(self, trucks=None, cargos=None):
+        self.trucks = trucks or self._get_model_list('trucks')
+        self.cargos = cargos or self._get_model_list('cargo')
         self.combinations = self._create_combinations()
 
         self.closer_combinations = list(self._get_closer_combinations())
-        self.filtered_combinations = self.get_filtered_combinations()
+        self.filtered_combinations = self._get_filtered_combinations()
         self.valid_combinations_ids = list()
 
         self.TRUCK_COUNT = len(self.trucks)
@@ -96,7 +96,7 @@ class TrucksAndCargos:
         if model not in 'cargo trucks'.split():
             raise NameError(f'The model {model} is not valid.')
         Model = Cargo if model == 'cargo' else Truck
-        return [Model(_id, data) for _id, data in enumerate(get_csv_reader(model), 1)]
+        return [Model(_id, **data) for _id, data in enumerate(get_csv_reader(model), 1)]
 
     def _create_combinations(self):
         return [Combination(truck, cargo) for cargo in self.cargos for truck in self.trucks]
@@ -109,13 +109,13 @@ class TrucksAndCargos:
         for cargo in self.cargos:
             yield self.get_closer_trucks_list(cargo.id)
 
-    def get_filtered_combinations(self):
+    def _get_filtered_combinations(self):
         for combination in self.closer_combinations:
             yield list(
                 filter(lambda x: x.distance_to_load < combination[0].distance_to_load + self.PRECISION, combination)
             )
 
-    def get_valid_combinations_ids(self):
+    def _get_valid_combinations_ids(self):
         filtered_ids = [comb.id for comb in itertools.chain.from_iterable(self.filtered_combinations)]
         all_combinations = combinations_with_replacement(filtered_ids, self.CARGO_COUNT)
         valid_combinations = list()
@@ -138,5 +138,5 @@ class TrucksAndCargos:
         return best_combination_codes
 
     def process(self):
-        self.get_valid_combinations_ids()
+        self._get_valid_combinations_ids()
         return list(filter(lambda x: x.id in self.get_best_combination_codes(), self.combinations))
