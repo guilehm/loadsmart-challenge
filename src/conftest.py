@@ -1,6 +1,6 @@
 import pytest
 
-from src.models import Truck, Cargo, Combination
+from src.models import Cargo, Combination, Truck
 
 
 @pytest.fixture

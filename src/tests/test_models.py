@@ -1,4 +1,4 @@
-from src.models import TrucksAndCargos, CombinationCombo, Truck, Cargo
+from src.models import CombinationCombo, TrucksAndCargos
 from src.utils import haversine
 
 

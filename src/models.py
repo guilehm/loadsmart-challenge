@@ -1,4 +1,4 @@
-from itertools import combinations_with_replacement, chain
+from itertools import chain, combinations_with_replacement
 
 from src.utils import get_csv_reader, haversine
 
