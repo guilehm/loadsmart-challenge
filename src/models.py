@@ -1,7 +1,9 @@
 from itertools import chain, combinations_with_replacement
-
+import sys
 from src.utils import get_csv_reader, haversine
+import logging
 
+logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
 
 class Cargo:
     def __init__(self, _id, **kwargs):
@@ -68,8 +70,7 @@ class Combination:
         return self.distance_to_load == other.distance_to_load
 
     def __repr__(self):
-        return f'COMB#{self.id:4}: ' \
-               f'(C#{self.cargo.id:03}-' \
+        return f'(C#{self.cargo.id:03}-' \
                f'T#{self.truck.id:03}) ' \
                f'(D {self.distance_to_load_representation}km)'
 
@@ -77,6 +78,7 @@ class Combination:
 class CombinationCombo:
     def __init__(self, *combinations):
         self.combinations = combinations
+        self.best_combo = False
 
     @property
     def total_distance(self):
@@ -89,15 +91,15 @@ class CombinationCombo:
         return (combination for combination in self.combinations)
 
     def __repr__(self):
-        return f'COMB.COMBO: {self.total_distance:6.2f}km'
+        return f'{"COMBINATION" if not self.best_combo else "BEST"} COMBO: {self.total_distance:6.2f}km'
 
     def print_combinations(self):
         for combination in self.combinations:
-            print(f'\t{combination}')
+            logging.info(f'\t{combination}')
 
 
 class TrucksAndCargos:
-    THRESHOLD = 50
+    THRESHOLD = 65
 
     def __init__(self, threshold=THRESHOLD, trucks=None, cargos=None):
         self.threshold = threshold
@@ -157,19 +159,23 @@ class TrucksAndCargos:
                     self.combos.append(valid_combo)
                     found = True
             if not found:
-                self.threshold += self.threshold
+                new_threshold = self.threshold + self.threshold
+                logging.info(f'[INFO] Increasing threshold from {self.threshold}km to {new_threshold}km')
+                self.threshold = new_threshold
 
     def _process(self):
         self._create_combos()
         self.combos.sort(key=lambda x: x.total_distance)
         self._best_combo = self.combos[0]
+        self._best_combo.best_combo = True
 
-    def print_all_combos(self, limit=5, verbose=True):
+    def print_all_combos(self, limit=10, verbose=True):
         for combo in self.combos[:limit]:
-            print(combo)
+            logging.info(combo)
             if verbose:
                 combo.print_combinations()
 
-    def print_best_combo(self):
-        print(self.best_combo)
-        self.best_combo.print_combinations()
+    def print_best_combo(self, verbose=True):
+        logging.info(self.best_combo)
+        if verbose:
+            self.best_combo.print_combinations()
