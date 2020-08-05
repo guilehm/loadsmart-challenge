@@ -1,5 +1,7 @@
 import csv
+import logging
 import os
+import sys
 from math import asin, cos, radians, sin, sqrt
 
 EARTH_RADIUS = 6371
@@ -21,3 +23,8 @@ def get_csv_reader(filename):
     with open(f'{os.getcwd()}/src/resources/{filename}.csv', 'r') as file:
         reader = csv.DictReader(file.read().splitlines())
     return reader
+
+
+def get_logger():
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
+    return logging

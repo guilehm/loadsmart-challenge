@@ -1,9 +1,9 @@
 from itertools import chain, combinations_with_replacement
-import sys
-from src.utils import get_csv_reader, haversine
-import logging
 
-logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(message)s')
+from src.utils import get_csv_reader, get_logger, haversine
+
+logging = get_logger()
+
 
 class Cargo:
     def __init__(self, _id, **kwargs):
