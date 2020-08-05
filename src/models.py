@@ -97,16 +97,14 @@ class CombinationCombo:
 
 
 class TrucksAndCargos:
-    THRESHOLD = 100
+    THRESHOLD = 50
 
     def __init__(self, threshold=THRESHOLD, trucks=None, cargos=None):
         self.threshold = threshold
         self.trucks = trucks or self._get_model_list('trucks')
         self.cargos = cargos or self._get_model_list('cargo')
         self.combinations = self._create_combinations()
-
         self.closer_combinations = list(self._get_closer_combinations())
-        self.filtered_combinations = self._get_filtered_combinations()
 
         self.combos = list()
         self._best_combo = None
@@ -146,15 +144,20 @@ class TrucksAndCargos:
             ))
 
     def _create_combos(self):
-        filtered_ids = [comb.id for comb in chain.from_iterable(self.filtered_combinations)]
-        all_combinations = combinations_with_replacement(filtered_ids, self.CARGO_COUNT)
-        for combination in all_combinations:
-            cargos, trucks = set(), set()
-            for cargo, truck in (code.split(',') for code in combination):
-                cargos.add(cargo), trucks.add(truck)
-            if len(cargos) == self.CARGO_COUNT and len(trucks) == self.CARGO_COUNT:
-                valid_combo = CombinationCombo(*list(filter(lambda x: x.id in combination, self.combinations)))
-                self.combos.append(valid_combo)
+        found = False
+        while not found:
+            filtered_ids = [comb.id for comb in chain.from_iterable(self._get_filtered_combinations())]
+            all_combinations = combinations_with_replacement(filtered_ids, self.CARGO_COUNT)
+            for combination in all_combinations:
+                cargos, trucks = set(), set()
+                for cargo, truck in (code.split(',') for code in combination):
+                    cargos.add(cargo), trucks.add(truck)
+                if len(cargos) == self.CARGO_COUNT and len(trucks) == self.CARGO_COUNT:
+                    valid_combo = CombinationCombo(*list(filter(lambda x: x.id in combination, self.combinations)))
+                    self.combos.append(valid_combo)
+                    found = True
+            if not found:
+                self.threshold += self.threshold
 
     def _process(self):
         self._create_combos()
