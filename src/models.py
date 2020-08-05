@@ -74,6 +74,28 @@ class Combination:
                f'(D {self.distance_to_load_representation}km)'
 
 
+class CombinationCombo:
+    def __init__(self, *combinations):
+        self.combinations = combinations
+
+    @property
+    def total_distance(self):
+        return sum(c.distance_to_load for c in self.combinations)
+
+    def __len__(self):
+        return len(self.combinations)
+
+    def __iter__(self):
+        return (combination for combination in self.combinations)
+
+    def __repr__(self):
+        return f'COMB.COMBO: {self.total_distance:6.2f}km'
+
+    def print_combinations(self):
+        for combination in self.combinations:
+            print(f'\t{combination}')
+
+
 class TrucksAndCargos:
     THRESHOLD = 100
 
@@ -85,9 +107,9 @@ class TrucksAndCargos:
 
         self.closer_combinations = list(self._get_closer_combinations())
         self.filtered_combinations = self._get_filtered_combinations()
-        self.valid_combinations_ids = list()
-        self.valid_combinations = list()
-        self.best_combination = list()
+
+        self.combos = list()
+        self._best_combo = None
 
         self.TRUCK_COUNT = len(self.trucks)
         self.CARGO_COUNT = len(self.cargos)
@@ -98,6 +120,13 @@ class TrucksAndCargos:
             raise NameError(f'The model {model} is not valid.')
         Model = Cargo if model == 'cargo' else Truck
         return [Model(_id, **data) for _id, data in enumerate(get_csv_reader(model), 1)]
+
+    @property
+    def best_combo(self):
+        if self._best_combo:
+            return self._best_combo
+        self._process()
+        return self._best_combo
 
     def _create_combinations(self):
         return [Combination(truck, cargo) for cargo in self.cargos for truck in self.trucks]
@@ -116,31 +145,28 @@ class TrucksAndCargos:
                 lambda x: x.distance_to_load < combination[0].distance_to_load + self.threshold, combination
             ))
 
-    def _get_valid_combinations_ids(self):
+    def _create_combos(self):
         filtered_ids = [comb.id for comb in chain.from_iterable(self.filtered_combinations)]
         all_combinations = combinations_with_replacement(filtered_ids, self.CARGO_COUNT)
-        valid_combinations_ids = list()
         for combination in all_combinations:
             cargos, trucks = set(), set()
             for cargo, truck in (code.split(',') for code in combination):
                 cargos.add(cargo), trucks.add(truck)
             if len(cargos) == self.CARGO_COUNT and len(trucks) == self.CARGO_COUNT:
-                valid_combinations_ids.append(combination)
-        self.valid_combinations_ids = valid_combinations_ids
+                valid_combo = CombinationCombo(*list(filter(lambda x: x.id in combination, self.combinations)))
+                self.combos.append(valid_combo)
 
-    def get_best_combination_codes(self):
-        distances = list()
-        for ids in self.valid_combinations_ids:
-            valid_combination = list(filter(lambda x: x.id in ids, self.combinations))
-            distances.append(sum([c.distance_to_load for c in valid_combination]))
-            self.valid_combinations.append(valid_combination)
-        key, _ = min(enumerate(distances), key=lambda x: x[1])
-        best_combination_codes = self.valid_combinations_ids[key]
-        return best_combination_codes
+    def _process(self):
+        self._create_combos()
+        self.combos.sort(key=lambda x: x.total_distance)
+        self._best_combo = self.combos[0]
 
-    def process(self):
-        self._get_valid_combinations_ids()
-        self.best_combination = list(filter(
-            lambda x: x.id in self.get_best_combination_codes(), self.combinations
-        ))
-        return self.best_combination
+    def print_all_combos(self, limit=5, verbose=True):
+        for combo in self.combos[:limit]:
+            print(combo)
+            if verbose:
+                combo.print_combinations()
+
+    def print_best_combo(self):
+        print(self.best_combo)
+        self.best_combo.print_combinations()
